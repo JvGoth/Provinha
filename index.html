@@ -1,533 +1,563 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Clock, CheckCircle, AlertCircle, Eye, ChevronDown, ChevronUp, Tag, CheckSquare, FileText, Dna, BookOpen, Activity, Zap } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulado Estruturado de Genética Médica - UFU</title>
+    <!-- Carrega Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-// --- DEFINIÇÃO DOS TEMAS E POOLS DE QUESTÕES ---
+    <style>
+        /* Define a fonte Inter, se disponível, para um visual moderno */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Customiza o scrollbar para melhor estética */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #94a3b8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+        }
+        .time-up {
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { background-color: #ef4444; }
+            50% { background-color: #b91c1c; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans">
 
-const TEMAS_E_POOLS = {
-  'cat1': {
-    nome: 'Introdução, História e Conceitos Básicos',
-    cor: 'blue',
-    fechadas: [
-      { id: 1, pergunta: 'Quem é considerado o "pai da genética" e em que ano publicou seus trabalhos fundamentais com ervilhas?', opcoes: ['Charles Darwin, 1859', 'Gregor Mendel, 1865', 'Watson e Crick, 1953', 'Thomas Hunt Morgan, 1910'], correta: 1 },
-      { id: 2, pergunta: 'O que o conceito de Pangênese (Hipócrates) sugeria sobre a herança?', opcoes: ['Herança de caracteres adquiridos', 'Herança particulada por genes', 'Mistura de fluidos corporais', 'Apenas o pai contribuía'], correta: 0 },
-      { id: 3, pergunta: 'Qual é o foco principal de estudo da Genética de Transmissão?', opcoes: ['Estrutura do DNA', 'Frequências alélicas em populações', 'Como características são passadas de geração a geração', 'Síntese de proteínas'], correta: 2 },
-      { id: 4, pergunta: 'A estrutura do DNA, dupla hélice antiparalela, foi proposta em qual ano?', opcoes: ['1910', '1865', '1953', '2003'], correta: 2 },
-      { id: 5, pergunta: 'Qual é a principal ideia da Teoria do Germoplasma (Weismann) que contradiz a Pangênese?', opcoes: ['A herança é controlada por cromossomos', 'Apenas células da linha germinativa são responsáveis pela herança', 'A informação genética se mistura', 'O ambiente determina a herança'], correta: 1 },
-      { id: 6, pergunta: 'Qual campo da Genética estuda a estrutura, organização e função dos genes em nível químico?', opcoes: ['Genética de Transmissão', 'Genética Molecular', 'Genética de Populações', 'Genética Quantitativa'], correta: 1 },
-      { id: 7, pergunta: 'O que é um "Genoma" em um organismo humano, conforme o conceito das slides?', opcoes: ['O conjunto de proteínas', 'Um par específico de cromossomos', 'O complemento idêntico de cromossomos em duas cópias', 'Apenas genes funcionais'], correta: 2 },
-      { id: 8, pergunta: 'Qual característica da ervilha (*Pisum sativum*) facilitou o controle dos experimentos de Mendel?', opcoes: ['Ciclo de vida longo', 'Prole pequena', 'Fácil polinização cruzada controlada', 'Múltiplos alelos'], correta: 2 },
-      { id: 9, pergunta: 'Onde o DNA está organizado em cromossomos dentro da célula?', opcoes: ['Citoplasma', 'Mitocôndria', 'Ribossomo', 'Núcleo'], correta: 3 },
-      { id: 10, pergunta: 'A genética moderna influencia a susceptibilidade a doenças, características físicas e...?', opcoes: ['Apenas a cor dos olhos', 'Apenas o peso corporal', 'Personalidade e inteligência', 'Apenas a altura'], correta: 2 },
-    ],
-    abertas: [
-      { id: 6, pergunta: 'Explique por que o conceito de **Pangênese** foi altamente influente até o século XIX e qual a teoria o substituiu, conforme o material didático.', gabarito: 'A Pangênese sugeria que "gêmulas" de todas as partes do corpo migravam para os gametas, levando à noção de herança de caracteres adquiridos. Foi substituída pela Teoria do Germoplasma (Weismann), que afirma que apenas células da linha germinativa são responsáveis pela herança, isolando o germoplasma (gametas) do somatoplasma (células do corpo).' },
-      { id: 7, pergunta: 'Citando a informação da **organização genética no Slide 2**, descreva o caminho hierárquico da informação genética, partindo do organismo (humano) até chegar ao nível molecular do gene.', gabarito: 'O corpo humano é feito de trilhões de células; cada núcleo celular contém um complemento idêntico de cromossomos em duas cópias (o genoma). Cada cromossomo é uma longa molécula de DNA (dupla hélice), e os genes são regiões funcionais desse DNA.' },
-      { id: 8, pergunta: 'Explique a importância da Genética para a Medicina, citando dois aspectos (além da susceptibilidade a doenças) que são influenciados pela genética em humanos.', gabarito: 'A genética é fundamental para o diagnóstico, prognóstico e desenvolvimento de terapias personalizadas na medicina. Além de influenciar a susceptibilidade a doenças, as slides mencionam que a genética também influencia características físicas, personalidade e inteligência.' },
-      { id: 9, pergunta: 'As slides subdividem a Genética em três áreas principais: Transmissão, Molecular e Populações. Diferencie a **Genética de Transmissão** da **Genética Molecular** em termos de seu foco de estudo.', gabarito: 'A Genética de Transmissão estuda *como* as características são transferidas de uma geração para a seguinte (padrões de herança). A Genética Molecular estuda a *estrutura, organização e função* dos genes em nível químico (DNA, RNA e proteínas).' },
-      { id: 10, pergunta: 'Quais foram as duas características da ervilha (*Pisum sativum*) que mais contribuíram para o sucesso dos experimentos de Mendel, permitindo a quantificação estatística de seus resultados?', gabarito: 'Fácil cultivo e ciclo de vida curto (que permitiu observar várias gerações rapidamente); e a presença de características discretas e contrastantes (como sementes amarelas vs. verdes) que não se misturavam na prole, o que refutou a ideia da herança por mistura de fluidos.' },
-    ]
-  },
-  'cat2': {
-    nome: 'Genética Mendeliana (1ª e 2ª Leis)',
-    cor: 'purple',
-    fechadas: [
-      { id: 11, pergunta: 'Na Primeira Lei, qual proporção fenotípica é esperada na $F_2$ de um cruzamento mono-híbrido (\$Aa \\times Aa\$)?', opcoes: ['1:1', '9:3:3:1', '3:1', '1:2:1'], correta: 2 },
-      { id: 12, pergunta: 'Qual regra de probabilidade se usa para eventos independentes que ocorrem ao mesmo tempo (ex: $A$ e $B$)?', opcoes: ['Regra da Adição', 'Regra da Multiplicação', 'Expansão Binomial', 'Regra do Quadrado'], correta: 1 },
-      { id: 13, pergunta: 'Qual é o genótipo do indivíduo sempre usado em um **Cruzamento-teste**?', opcoes: ['Homozigoto Dominante', 'Heterozigoto', 'Homozigoto Recessivo', 'Duplo-Heterozigoto'], correta: 2 },
-      { id: 14, pergunta: 'A Segunda Lei de Mendel afirma que os alelos de genes diferentes:', opcoes: ['São sempre ligados no mesmo cromossomo', 'Segregam-se independentemente', 'Misturam-se nos gametas', 'Segregam em proporção 1:2:1'], correta: 1 },
-      { id: 15, pergunta: 'Qual é a proporção fenotípica esperada na $F_2$ de um cruzamento di-híbrido clássico (\$AaBb \\times AaBb\$)?', opcoes: ['1:1:1:1', '3:1', '9:3:3:1', '1:2:1:2:4:2:1:2:1'], correta: 2 },
-      { id: 16, pergunta: 'Em um cruzamento di-híbrido, se os alelos $A$ e $B$ segregam independentemente, a probabilidade de um gameta ser $AB$ é:', opcoes: ['1/4', '1/2', '3/4', '1'], correta: 0 },
-      { id: 17, pergunta: 'Qual proporção genotípica é esperada no cruzamento mono-híbrido $F_2$ (\$Aa \\times Aa\$)?', opcoes: ['1:1', '3:1', '1:2:1', '9:3:3:1'], correta: 2 },
-      { id: 18, pergunta: 'A **Expansão Binomial** (\$p+q)^n\$) é usada para calcular a probabilidade de eventos que não são independentes?', opcoes: ['Verdadeiro', 'Falso'], correta: 1 },
-      { id: 19, pergunta: 'O que o termo **Alelo** representa?', opcoes: ['Apenas a versão dominante de um gene', 'Diferentes formas de um mesmo gene', 'O local de um gene no cromossomo', 'O resultado observável de um genótipo'], correta: 1 },
-      { id: 20, pergunta: 'Se um indivíduo tem genótipo $AA$, ele é considerado:', opcoes: ['Heterozigoto', 'Hemi-zigoto', 'Homozigoto Recessivo', 'Homozigoto Dominante'], correta: 3 },
-    ],
-    abertas: [
-      { id: 16, pergunta: 'Descreva o procedimento e a utilidade do **Cruzamento-Teste** (ou retrocruzamento), que é uma ferramenta importante na Genética Mendeliana, conforme apresentado no material. Como ele revela o genótipo desconhecido?', gabarito: 'O Cruzamento-Teste consiste em cruzar um indivíduo de genótipo desconhecido (que manifesta o fenótipo dominante, ex: $A\\_$ ) com um indivíduo homozigoto recessivo ($aa$). Se a prole for 100% dominante, o genótipo desconhecido é $AA$. Se houver descendentes recessivos ($aa$), o genótipo desconhecido é $Aa$.' },
-      { id: 17, pergunta: 'Em um casal onde ambos são heterozigotos para uma característica autossômica recessiva (como o albinismo, $Aa \\times Aa$), utilize a **Regra da Multiplicação** (ou "do E") para calcular a probabilidade de eles terem *três filhos normais* seguidos.', gabarito: 'A probabilidade de ter um filho normal é $3/4$. Como os nascimentos são eventos independentes, a probabilidade de ter três filhos normais seguidos é $(3/4) \\times (3/4) \\times (3/4) = 27/64$.' },
-      { id: 18, pergunta: 'A Segunda Lei de Mendel (Lei da Segregação Independente) é fundamental. Explique a relação entre a **segregação independente** dos alelos de genes diferentes e o processo de divisão celular de **Meiose**.', gabarito: 'A segregação independente dos alelos de genes em cromossomos diferentes ocorre porque os pares de cromossomos homólogos se alinham e se separam de forma aleatória durante a Anáfase I da Meiose, garantindo que a herança de um gene não afete a herança do outro.' },
-      { id: 19, pergunta: 'Diferencie claramente **Genótipo** de **Fenótipo**. Use o exemplo da cor da semente da ervilha ($A$ para Amarela, $a$ para Verde) para ilustrar os possíveis genótipos e seus fenótipos correspondentes.', gabarito: 'Genótipo é a constituição genética de um indivíduo (a combinação de alelos, ex: $AA$, $Aa$, $aa$). Fenótipo é a manifestação observável do traço, que é o resultado do genótipo e da influência ambiental (ex: semente amarela ou semente verde). O genótipo $AA$ e $Aa$ resultam no fenótipo Amarela, e $aa$ resulta no fenótipo Verde.' },
-      { id: 20, pergunta: 'A **Expansão Binomial** (\$P=\\frac{n!}{x!y!}p^xq^y\$) é usada para calcular probabilidades complexas. Explique qual a finalidade da variável $n$ e da variável $x$ nesta fórmula.', gabarito: 'Na fórmula da Expansão Binomial, $n$ representa o **número total de eventos** (ou o tamanho da prole, ex: número de crianças). $x$ representa o **número de vezes que um evento específico** (com probabilidade $p$) ocorre (ex: número de crianças com albinismo).' },
-    ]
-  },
-  'cat3': {
-    nome: 'Extensões de Mendel e Interação Gênica',
-    cor: 'green',
-    fechadas: [
-      { id: 21, pergunta: 'A relação entre os alelos $I^A$ e $I^B$ no sistema ABO é um exemplo de:', opcoes: ['Dominância Incompleta', 'Dominância Completa', 'Codominância', 'Epistasia'], correta: 2 },
-      { id: 22, pergunta: 'Quando um único gene influencia múltiplas características fenotípicas (ex: Fibrose Cística), o fenômeno é chamado de:', opcoes: ['Epistasia', 'Pleiotropia', 'Alelos Letais', 'Penetrância'], correta: 1 },
-      { id: 23, pergunta: 'A proporção fenotípica **2:1** em um cruzamento entre heterozigotos é frequentemente um indicativo de:', opcoes: ['Dominância Incompleta', 'Alelos Letais Recessivos', 'Codominância', 'Epistasia Dominante'], correta: 1 },
-      { id: 24, pergunta: 'Qual termo descreve a variação no grau ou intensidade com que um fenótipo é manifestado?', opcoes: ['Penetrância', 'Expressividade', 'Codominância', 'Pleiotropia'], correta: 1 },
-      { id: 25, pergunta: 'O sistema ABO é um exemplo de herança por Alelos Múltiplos, o que significa:', opcoes: ['Há apenas dois alelos possíveis para o gene', 'Há três ou mais alelos para o locus na população', 'Os alelos são codominantes', 'O gene é epistático'], correta: 1 },
-      { id: 26, pergunta: 'O que ocorre na **Dominância Incompleta**?', opcoes: ['Ambos os alelos se expressam', 'O heterozigoto tem um fenótipo intermediário', 'O alelo dominante mascara o outro', 'O alelo letal causa a morte'], correta: 1 },
-      { id: 27, pergunta: 'Qual fenômeno explica o **Efeito Bombaim** (onde o genótipo $hh$ no locus $\\text{H}$ impede a expressão dos alelos $A$ e $B$)?', opcoes: ['Pleiotropia', 'Codominância', 'Dominância Incompleta', 'Epistasia Recessiva'], correta: 3 },
-      { id: 28, pergunta: 'Qual termo descreve a porcentagem de indivíduos com um genótipo que expressam o fenótipo esperado (ex: $AA$ manifesta a doença)?', opcoes: ['Penetrância', 'Expressividade', 'Dominância', 'Pleiotropia'], correta: 0 },
-      { id: 29, pergunta: 'Se uma planta com flor vermelha (RR) é cruzada com uma branca (rr), e a $F_1$ (Rr) é rosa, o padrão é:', opcoes: ['Codominância', 'Dominância Incompleta', 'Alelos Múltiplos', 'Epistasia'], correta: 1 },
-      { id: 30, pergunta: 'Qual dos genótipos de camundongo amarelo morre, resultando na proporção $2:1$ (Yy:yy), conforme o exemplo de Alelos Letais Recessivos?', opcoes: ['$Yy$', '$yy$', '$YY$', 'Todos'], correta: 2 },
-    ],
-    abertas: [
-      { id: 26, pergunta: 'As doenças genéticas humanas demonstram variação. Explique a importância e a diferença entre os conceitos de **Penetrância** e **Expressividade** no estudo dessas doenças, conforme o material.', gabarito: 'Penetrância: é a porcentagem de indivíduos que, *possuindo o genótipo* para uma característica, manifestam o fenótipo correspondente (é um critério de "tudo ou nada"). Expressividade: é o *grau ou intensidade* da manifestação do fenótipo em indivíduos que o expressam (ex: casos leves vs. graves de uma doença).' },
-      { id: 27, pergunta: 'O sistema de **Alelos Letais Recessivos** (ex: camundongo amarelo) afeta a contagem de indivíduos. Explique como esse fenômeno altera a proporção mendeliana clássica $3:1$ esperada na $F_2$ e qual a nova proporção fenotípica observada nos descendentes vivos.', gabarito: 'Alelos letais recessivos causam a morte dos indivíduos homozigotos para o alelo (ex: $YY$), geralmente no estágio embrionário. A morte de 1/4 da prole (\$1/4 YY\$), que seria o homozigoto dominante, resulta na proporção fenotípica de $2:1$ ($2/3$ heterozigotos e $1/3$ homozigotos recessivos) nos descendentes que nascem vivos.' },
-      { id: 28, pergunta: 'Defina **Pleiotropia** e utilize a **Anemia Falciforme** como exemplo para explicar como a mutação em um único gene pode gerar múltiplos sintomas clínicos e efeitos em diferentes sistemas do corpo.', gabarito: 'Pleiotropia é o fenômeno em que um único gene afeta múltiplas características fenotípicas. Na Anemia Falciforme, a mutação no gene da $\\beta$-globina altera a hemoglobina, causando a deformação das hemácias, o que leva a múltiplos sintomas como anemia, dores crônicas, e danos em órgãos como o baço e rins, caracterizando a pleiotropia.' },
-      { id: 29, pergunta: 'O que é Epistasia? O **"Efeito Bombaim"** é um caso de Epistasia Recessiva. Explique de forma clara como o genótipo $hh$ no locus $\\text{H}$ interage com os alelos do sistema ABO para determinar o fenótipo sanguíneo "O".', gabarito: 'Epistasia é uma interação gênica onde um gene (epistático, ex: $H/h$) mascara ou modifica a expressão de um outro gene (hipostático, ex: $I^A, I^B, i$). No Efeito Bombaim, o genótipo homozigoto recessivo $hh$ impede a produção do antígeno H (necessário para a fixação dos antígenos A e B), resultando em fenótipo sanguíneo "O", independentemente do genótipo no locus ABO ($I^A$ ou $I^B$ estarem presentes).' },
-      { id: 30, pergunta: 'Diferencie **Dominância Incompleta** e **Codominância**, citando como o fenótipo do indivíduo heterozigoto (\$A_1A_2\$) se manifesta em cada um desses padrões.', gabarito: 'Dominância Incompleta: O fenótipo do heterozigoto é *intermediário* entre os fenótipos dos dois homozigotos (ex: flor rosa). Codominância: O fenótipo do heterozigoto *expressa simultaneamente* os fenótipos de ambos os homozigotos, sem mistura ou intermediário (ex: tipo sanguíneo AB, onde os antígenos A e B são expressos juntos).' },
-    ]
-  },
-  'cat4': {
-    nome: 'Análise de Heredogramas e Padrões de Herança',
-    cor: 'orange',
-    fechadas: [
-      { id: 31, pergunta: 'Qual padrão de herança é tipicamente caracterizado por "pular gerações" (pais normais têm filhos afetados) e afetar homens e mulheres igualmente?', opcoes: ['Autossômica Dominante', 'Ligada ao X Dominante', 'Autossômica Recessiva', 'Ligada ao Y'], correta: 2 },
-      { id: 32, pergunta: 'Qual padrão de herança é o mais provável quando a doença afeta muito mais homens que mulheres, e pais afetados nunca têm filhos homens afetados?', opcoes: ['Autossômica Dominante', 'Ligada ao Y', 'Autossômica Recessiva', 'Ligada ao X Recessiva'], correta: 3 },
-      { id: 33, pergunta: 'Em um heredograma, qual o símbolo que representa uma mulher afetada por uma condição?', opcoes: ['Círculo vazio', 'Quadrado preenchido', 'Círculo preenchido', 'Quadrado vazio'], correta: 2 },
-      { id: 34, pergunta: 'Qual fator aumenta o risco de doenças autossômicas recessivas devido ao compartilhamento de alelos raros?', opcoes: ['Mutação nova', 'Penetrância incompleta', 'Consanguinidade', 'Epistasia'], correta: 2 },
-      { id: 35, pergunta: 'A **Hemofilia**, clássico exemplo citado nas slides, segue o padrão de herança:', opcoes: ['Autossômica Dominante', 'Ligada ao X Dominante', 'Autossômica Recessiva', 'Ligada ao X Recessiva'], correta: 3 },
-      { id: 36, pergunta: 'Qual é uma característica-chave de uma herança Autossômica Dominante?', opcoes: ['Afecta apenas homens', 'Pula gerações frequentemente', 'Indivíduos afetados têm, via de regra, um pai afetado', 'Afecta apenas os homozigotos'], correta: 2 },
-      { id: 37, pergunta: 'Se uma condição Ligada ao X Dominante for observada, um pai afetado (\$X^AY\$) irá transmitir o alelo afetado para:', opcoes: ['Todas as filhas', 'Todos os filhos', 'Metade dos filhos e filhas', 'Nenhum dos filhos'], correta: 0 },
-      { id: 38, pergunta: 'Em heredogramas, Gêmeos Monozigóticos (idênticos) são representados por:', opcoes: ['Duas linhas separadas', 'Uma linha de sibship com um "V" conectando-os', 'Um quadrado e um círculo ligados', 'Apenas um símbolo com um número'], correta: 1 },
-      { id: 39, pergunta: 'A **Síndrome de Down** é causada por uma alteração cromossômica, o que é uma limitação da análise tradicional de heredogramas de um único gene. Que tipo de análise seria mais apropriada neste caso?', opcoes: ['Estudos de linkage', 'Citogenética', 'Genética de Populações', 'Cruzamento-teste'], correta: 1 },
-      { id: 40, pergunta: 'A condição **Ligada ao Y** é o único padrão onde o gene é transmitido diretamente:', opcoes: ['De mãe para todos os filhos', 'De pai para todos os filhos homens', 'De pai para todas as filhas', 'Apenas para mulheres'], correta: 1 },
-    ],
-    abertas: [
-      { id: 36, pergunta: 'O material didático lista as **três principais limitações** no estudo de genética em humanos que justificam o uso do heredograma como ferramenta central. Quais são essas limitações?', gabarito: 'As limitações são: 1) Não são possíveis reproduções controladas (cruzamentos); 2) Longo tempo de geração; e 3) Prole pequena, o que dificulta a análise estatística das proporções.' },
-      { id: 37, pergunta: 'Se um casal normal tem um filho afetado por uma doença **autossômica recessiva** (ex: $aa$), quais são os **genótipos obrigatórios** dos pais (\$A\_ \times A\_\$), e qual é o **risco de recorrência** para o próximo filho deste casal (probabilidade de nascer afetado)?', gabarito: 'Se os pais são normais e têm um filho $aa$, ambos os pais devem ser heterozigotos (portadores), ou seja, $Aa$. O cruzamento é $Aa \\times Aa$, e o risco de recorrência para o próximo filho nascer afetado ($aa$) é de $1/4$ ou $25\\%$.' },
-      { id: 38, pergunta: 'Descreva as **duas regras de ouro** para identificar uma Herança **Autossômica Dominante** em um heredograma, focando na manifestação da condição ao longo das gerações e na linhagem familiar.', gabarito: '1) A característica **não pula gerações**, ou seja, aparece em todas as gerações; e 2) Indivíduos afetados têm, via de regra, **pelo menos um pai afetado** (transmissão vertical).' },
-      { id: 39, pergunta: 'Em relação a uma doença **Ligada ao X Recessiva** (como o Daltonismo), explique por que um pai afetado ($\\text{X}^a\\text{Y}$) **não pode transmitir** a característica para seus filhos homens, mas pode transmiti-la para seus netos homens.', gabarito: 'O pai afetado (\$X^aY\$) só transmite o cromossomo Y para seus filhos homens. O alelo (\$X^a\$) é transmitido apenas para as filhas, tornando-as portadoras (\$X^AX^a\$). Essas filhas portadoras (\$X^AX^a\$) têm $50\\%$ de chance de transmitir o alelo (\$X^a\$) para seus filhos homens, que serão então afetados.' },
-      { id: 40, pergunta: 'Por que a prática de **Consanguinidade** (casamento entre parentes) aumenta significativamente a chance de manifestação de doenças **Autossômicas Recessivas** raras na prole?', gabarito: 'Casamentos consanguíneos aumentam a probabilidade de que ambos os pais, que compartilham um ancestral em comum, sejam heterozigotos (portadores) para o mesmo alelo recessivo raro. Quando ambos são portadores ($Aa \\times Aa$), há uma chance de $25\\%$ de o filho nascer homozigoto recessivo ($aa$) e manifestar a doença.' },
-    ]
-  },
-  'cat5': {
-    nome: 'Genética Molecular e Mídia',
-    cor: 'red',
-    fechadas: [
-      { id: 41, pergunta: 'Qual é a molécula que armazena a informação genética em forma de dupla hélice?', opcoes: ['Proteína', 'RNA', 'DNA', 'Carboidrato'], correta: 2 },
-      { id: 42, pergunta: 'Qual é a função da técnica de edição genética **CRISPR**?', opcoes: ['Clonar organismos', 'Sequenciar genomas rapidamente', 'Cortar e modificar sequências de DNA', 'Produzir vacinas de RNA'], correta: 2 },
-      { id: 43, pergunta: 'A **Anemia Falciforme** é um exemplo de pleiotropia, onde um único gene afeta:', opcoes: ['Apenas a hemoglobina', 'Múltiplas características fenotípicas', 'Apenas a cor dos olhos', 'Apenas o sistema nervoso'], correta: 1 },
-      { id: 44, pergunta: 'O vazamento de dados da 23andMe levanta uma preocupação ética sobre a segurança de:', opcoes: ['Informações de endereço e telefone', 'Dados genéticos e sua privacidade', 'Dados financeiros de compra', 'Apenas nomes de usuários'], correta: 1 },
-      { id: 45, pergunta: 'No contexto de criminalística no Brasil, a genética é usada para qual finalidade obrigatória (aprovada em comissão)?', opcoes: ['Teste de paternidade', 'Identificação genética de condenados por crimes', 'Mapeamento de DNA fetal', 'Teste de ancestralidade'], correta: 1 },
-      { id: 46, pergunta: 'Qual é a função principal do **RNA** na célula, em contraste com o DNA?', opcoes: ['Armazenar a informação genética principal', 'Ser o intermediário na expressão do gene (transcrição/tradução)', 'Compôr a membrana celular', 'Controlar a mitose'], correta: 1 },
-      { id: 47, pergunta: 'A terapia gênica, possível graças aos avanços da genética molecular, busca:', opcoes: ['Substituir o núcleo da célula', 'Corrigir mutações genéticas causadoras de doenças', 'Criar organismos clonados', 'Mudar a cor dos olhos'], correta: 1 },
-      { id: 48, pergunta: 'O que o termo **Gene** representa em relação à molécula de DNA?', opcoes: ['O par de cromossomos', 'Regiões funcionais do DNA', 'Apenas as bases nitrogenadas', 'O conjunto de proteínas'], correta: 1 },
-      { id: 49, pergunta: 'A **Genética de Populações** estuda os grupos de genes em uma população, sendo relevante para análises de:', opcoes: ['Fenótipo individual', 'Terapia Gênica', 'Miscigenação e ancestralidade', 'Alelos letais'], correta: 2 },
-      { id: 50, pergunta: 'Qual dos seguintes é um risco ético relacionado ao uso de testes de ancestralidade (como 23andMe)?', opcoes: ['O teste é muito rápido', 'O teste é muito barato', 'Vazamento ou uso indevido de dados genéticos', 'O teste só pode ser feito online'], correta: 2 },
-    ],
-    abertas: [
-      { id: 46, pergunta: 'O material didático menciona a importância da genética para a **investigação criminal** no Brasil, citando uma medida legal aprovada em comissão. Explique qual é essa medida e qual o seu propósito de segurança pública.', gabarito: 'A medida aprovada/discutida é a **identificação genética obrigatória para todos os condenados por crimes** específicos (geralmente crimes graves). O propósito é a criação de um banco de dados genético (perfis de DNA) para auxiliar na resolução de crimes futuros e na identificação de criminosos e vítimas.' },
-      { id: 47, pergunta: 'O caso do vazamento de dados da **23andMe** (mencionado na BBC) levanta uma preocupação ética fundamental na "Genética na Mídia". Qual é essa preocupação ética central e por que os dados genéticos são considerados tão sensíveis?', gabarito: 'A preocupação ética central é a **privacidade e a segurança dos dados genéticos**. Esses dados são considerados sensíveis porque contêm informações hereditárias, podendo revelar predisposições a doenças, ancestralidade e até mesmo informações de parentes, o que pode levar a discriminação ou uso indevido (ex: por seguradoras ou empregadores).' },
-      { id: 48, pergunta: 'A edição gênica **CRISPR** foi citada como uma das fronteiras da ciência moderna. Explique a função principal desta técnica em termos moleculares (o que ela faz com o DNA) e cite uma aplicação médica em potencial.', gabarito: 'O CRISPR é uma ferramenta de edição genética que tem a função principal de **cortar e modificar sequências de DNA** em locais específicos do genoma. Sua aplicação médica potencial inclui a **correção de mutações genéticas** causadoras de doenças hereditárias, como a anemia falciforme ou a fibrose cística (terapia genética).' },
-      { id: 49, pergunta: 'Além do uso em criminalística, cite e explique brevemente outra área de aplicação da Genética na Mídia ou no cotidiano (como testes de ancestralidade ou mapeamento de miscigenacão no Brasil), conforme apresentado nos slides.', gabarito: 'Exemplo 1: **Testes de ancestralidade** (como 23andMe e Genera) - utilizados para mapear a origem geográfica e étnica dos indivíduos. Exemplo 2: **Mapeamento de miscigenacão no Brasil** - estudos que usam a Genética de Populações para entender o impacto da miscigenação na saúde e no DNA da população brasileira.' },
-      { id: 50, pergunta: 'O que a **Pleiotropia** significa em termos de ação gênica? Use o exemplo da **Fenilcetonúria (PKU)** para explicar como a falha em um único gene pode ter múltiplos efeitos fenotípicos (déficit intelectual, pele clara, etc.).', gabarito: 'Pleiotropia é quando um único gene influencia múltiplas características fenotípicas não relacionadas. Na PKU, a mutação em um gene impede a metabolização da fenilalanina. O acúmulo dessa substância causa dano neurológico (déficit intelectual), mas, ao mesmo tempo, a falta de tirosina (que é derivada da fenilalanina) leva à menor produção de melanina, resultando em pele e cabelos claros. Um gene, múltiplos efeitos.' },
-    ]
-  }
-};
-
-// --- FUNÇÕES DE UTILIDADE ---
-
-// Função para embaralhar um array
-const shuffleArray = (array: any[]) => {
-  let newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
-
-// --- ESTRUTURA DOS DADOS DA PROVA ---
-interface QuestaoFechada {
-  id: number;
-  pergunta: string;
-  opcoes: string[];
-  correta: number;
-}
-
-interface QuestaoAberta {
-  id: number;
-  pergunta: string;
-  gabarito: string;
-}
-
-interface BlocoTematico {
-  nome: string;
-  cor: string;
-  idTema: string;
-  questoesFechadas: QuestaoFechada[];
-  questoesAbertas: QuestaoAberta[];
-}
-
-// --- COMPONENTE TIMER ---
-
-const Timer = ({ duration, onFinish }: { duration: number, onFinish: () => void }) => {
-  const [timeLeft, setTimeLeft] = useState(duration);
-
-  useEffect(() => {
-    if (!duration) return; 
-    if (timeLeft <= 0) {
-      onFinish();
-      return;
-    }
-    const timerId = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearInterval(timerId);
-  }, [timeLeft, onFinish, duration]);
-
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    
-    const pad = (num: number) => num.toString().padStart(2, '0');
-    return `${pad(h)}:${pad(m)}:${pad(s)}`;
-  };
-
-  const timeColor = timeLeft < 600 ? 'text-red-600 animate-pulse' : 'text-slate-800';
-
-  return (
-    <div className={`font-mono text-xl font-bold flex items-center gap-2 ${timeColor}`}>
-      <Clock className="w-6 h-6" />
-      {formatTime(timeLeft)}
+    <!-- Container principal onde o JavaScript irá gerar o conteúdo -->
+    <div id="root" class="max-w-6xl mx-auto p-4 sm:p-8">
+        <div id="header-container"></div>
+        <div id="results-summary"></div>
+        <section id="closed-questions-section" class="space-y-10 mb-10"></section>
+        <section id="open-questions-section" class="space-y-6"></section>
+        <div id="footer-container"></div>
     </div>
-  );
-};
 
-// --- COMPONENTE PRINCIPAL ---
+    <script>
+        // --- DEFINIÇÃO DOS TEMAS E POOLS DE QUESTÕES (SEM NOTAÇÃO LATEX) ---
+        const FULL_POOLS = {
+            'cat1': {
+                nome: 'Introdução, História e Conceitos Básicos',
+                cor: 'blue',
+                fechadas: [
+                    { id: 1, pergunta: 'Quem é considerado o "pai da genética" e em que ano publicou seus trabalhos fundamentais com ervilhas?', opcoes: ['Charles Darwin, 1859', 'Gregor Mendel, 1865', 'Watson e Crick, 1953', 'Thomas Hunt Morgan, 1910'], correta: 1, tema: 'cat1' },
+                    { id: 2, pergunta: 'O que o conceito de Pangênese (Hipócrates) sugeria sobre a herança?', opcoes: ['Herança de caracteres adquiridos', 'Herança particulada por genes', 'Mistura de fluidos corporais', 'Apenas o pai contribuía'], correta: 0, tema: 'cat1' },
+                    { id: 3, pergunta: 'Qual é o foco principal de estudo da Genética de Transmissão?', opcoes: ['Estrutura do DNA', 'Frequências alélicas em populações', 'Como características são passadas de geração a geração', 'Síntese de proteínas'], correta: 2, tema: 'cat1' },
+                    { id: 4, pergunta: 'A estrutura do DNA, dupla hélice antiparalela, foi proposta em qual ano?', opcoes: ['1900', '1944', '1953', '1968'], correta: 2, tema: 'cat1' },
+                    { id: 5, pergunta: 'Qual dos seguintes NÃO é uma razão pela qual os humanos são ruins para estudos genéticos?', opcoes: ['Longo tempo de geração', 'Não é possível controle de reprodução', 'Prole pequena', 'Não há variabilidade genética'], correta: 3, tema: 'cat1' },
+                    { id: 6, pergunta: 'Qual é a principal diferença entre Genoma e Cariótipo?', opcoes: ['Genoma é o número de cromossomos; Cariótipo é a sequência de DNA.', 'Genoma é a totalidade do DNA; Cariótipo é a organização visível dos cromossomos.', 'Genoma é apenas o DNA mitocondrial; Cariótipo é o nuclear.', 'Não há diferença.'], correta: 1, tema: 'cat1' },
+                    { id: 7, pergunta: 'O que a Teoria da Mistura (Blending Inheritance) não conseguiu explicar?', opcoes: ['A dominância de certos traços.', 'A variabilidade entre a prole.', 'O ressurgimento de traços parentais em gerações subsequentes.', 'A segregação de fatores.'], correta: 2, tema: 'cat1' },
+                    { id: 8, pergunta: 'O que é um loco (locus)?', opcoes: ['O gene dominante.', 'O par de alelos.', 'A localização física de um gene em um cromossomo.', 'A forma alternativa de um gene.'], correta: 2, tema: 'cat1' },
+                    { id: 9, pergunta: 'Qual das seguintes áreas da genética tem como foco o estudo das frequências alélicas em populações?', opcoes: ['Genética de Transmissão.', 'Citogenética.', 'Genética Molecular.', 'Genética de Populações.'], correta: 3, tema: 'cat1' },
+                    { id: 10, pergunta: 'Quem foi um proponente da Teoria do Germoplasma, que refutou a herança de caracteres adquiridos?', opcoes: ['Aristóteles.', 'Lamarck.', 'Weismann.', 'Mendel.'], correta: 2, tema: 'cat1' },
+                ],
+                abertas: [
+                    { id: 1, pergunta: 'Explique a diferença entre Genética de Transmissão, Genética Molecular e Genética de Populações.', gabarito: '**Resposta:** Genética de Transmissão estuda como as características são passadas entre gerações (heredogramas, Leis de Mendel). **Contexto:** A Genética Molecular estuda a estrutura, organização e função dos genes (DNA, RNA, proteínas). A Genética de Populações estuda a composição genética de grupos de indivíduos e a mudança das frequências alélicas ao longo do tempo.', tema: 'cat1' },
+                    { id: 2, pergunta: 'Descreva brevemente a Teoria do Germoplasma de Weismann e por que ela refutou a Pangênese.', gabarito: '**Resposta:** A Teoria do Germoplasma afirma que o material genético (germoplasma) está separado das células somáticas (somatoplasma). **Contexto:** Isso refuta a Pangênese, que sugeria que informações genéticas de todas as partes do corpo eram levadas aos órgãos reprodutivos (o que permitiria a herança de caracteres adquiridos).', tema: 'cat1' },
+                    { id: 3, pergunta: 'Qual é a importância da Genética para a Medicina moderna.', gabarito: '**Resposta:** A Genética é crucial para entender a suscetibilidade a doenças, diagnóstico de síndromes genéticas, desenvolvimento de terapias gênicas e medicina personalizada. **Contexto:** Isso permite tratamentos mais direcionados e eficazes, além da prevenção baseada em risco genético.', tema: 'cat1' },
+                    { id: 4, pergunta: 'Cite e explique um conceito que torna o estudo da genética humana desafiador.', gabarito: '**Resposta:** Longo tempo de geração, Prole pequena, ou a impossibilidade de reproduções controladas. **Contexto:** Estes fatores dificultam a aplicação direta das Leis de Mendel e a obtenção de grandes conjuntos de dados de forma rápida, exigindo o uso de heredogramas e métodos estatísticos.', tema: 'cat1' },
+                    { id: 5, pergunta: 'Qual o papel da miscigenação na genética da população brasileira, conforme estudos citados nas mídias?', gabarito: '**Resposta:** A miscigenação resultou em uma variabilidade genética única, com implicações para a saúde. **Contexto:** A variação na resposta a certos medicamentos e a prevalência de certas doenças em subgrupos populacionais são consequências diretas dessa variabilidade, o que é relevante para a medicina personalizada.', tema: 'cat1' },
+                ]
+            },
+            'cat2': {
+                nome: 'Genética Mendeliana e Cruzamentos',
+                cor: 'green',
+                fechadas: [
+                    { id: 11, pergunta: 'Qual é a principal diferença entre gene e alelo?', opcoes: ['Alelo é a unidade de herança; Gene é a sua variação.', 'Gene é a unidade de herança; Alelo é a forma alternativa do gene.', 'Gene é sempre dominante; Alelo é sempre recessivo.', 'Não há diferença significativa, são sinônimos.'], correta: 1, tema: 'cat2' },
+                    { id: 12, pergunta: 'Qual proporção fenotípica é esperada na $F_2$ de um cruzamento monoíbrido simples (dominância completa)?', opcoes: ['1:1', '3:1', '1:2:1', '9:3:3:1'], correta: 1, tema: 'cat2' },
+                    { id: 13, pergunta: 'O que define um indivíduo ser homozigoto?', opcoes: ['Ter um alelo dominante e um recessivo.', 'Expressar o fenótipo recessivo.', 'Ter dois alelos idênticos para uma característica.', 'Ter o genótipo "Aa".'], correta: 2, tema: 'cat2' },
+                    { id: 14, pergunta: 'O que é um cruzamento-teste?', opcoes: ['Cruzamento entre dois heterozigotos.', 'Cruzamento entre um indivíduo de genótipo desconhecido e um homozigoto dominante.', 'Cruzamento entre dois homozigotos recessivos.', 'Cruzamento entre um indivíduo de genótipo desconhecido e um homozigoto recessivo.'], correta: 3, tema: 'cat2' },
+                    { id: 15, pergunta: 'Na Segunda Lei de Mendel, a segregação independente dos alelos é observada em qual tipo de cruzamento?', opcoes: ['Monoíbrido', 'Retrocruzamento', 'Di-híbrido', 'Cruzamento-teste'], correta: 2, tema: 'cat2' },
+                    { id: 16, pergunta: 'Qual a proporção genotípica esperada na $F_2$ de um cruzamento monoíbrido?', opcoes: ['1:1.', '3:1.', '1:2:1.', '9:3:3:1.'], correta: 2, tema: 'cat2' },
+                    { id: 17, pergunta: 'Se um indivíduo tem o genótipo "Aabb", ele produzirá quantos tipos de gametas diferentes (em proporções iguais)?', opcoes: ['1 (Ab)', '2 (AB e ab)', '3', '4 (AB, Ab, aB, ab)'], correta: 0, tema: 'cat2' },
+                    { id: 18, pergunta: 'Qual é a probabilidade de um cruzamento "Aa" x "Aa" gerar um descendente homozigoto recessivo ("aa")?', opcoes: ['1/2', '1/4', '3/4', '2/3'], correta: 1, tema: 'cat2' },
+                    { id: 19, pergunta: 'Qual a relação entre a Segunda Lei de Mendel e a localização dos genes?', opcoes: ['Aplica-se apenas a genes no mesmo cromossomo.', 'Aplica-se a genes ligados no mesmo cromossomo.', 'Aplica-se a genes localizados em cromossomos diferentes.', 'Apenas genes autossômicos a seguem.'], correta: 2, tema: 'cat2' },
+                    { id: 20, pergunta: 'Em um cruzamento-teste de um di-híbrido ("AaBb"), qual genótipo deve ser usado como o indivíduo teste?', opcoes: ['AABB', 'AaBb', 'AAbb', 'aabb'], correta: 3, tema: 'cat2' },
+                ],
+                abertas: [
+                    { id: 6, pergunta: 'Explique a Primeira Lei de Mendel (Lei da Segregação) usando os termos gene, alelo e gameta.', gabarito: '**Resposta:** A Primeira Lei estabelece que cada indivíduo possui dois fatores (genes/alelos) para cada característica. **Contexto:** Esses fatores se separam (segregam) durante a formação dos gametas, de modo que cada gameta recebe apenas um fator. Na fertilização, os fatores se combinam aleatoriamente, restaurando o par.', tema: 'cat2' },
+                    { id: 7, pergunta: 'Em um cruzamento di-híbrido ("AaBb" x "AaBb") com dominância completa, qual é a proporção genotípica esperada para o genótipo "AaBb" e qual sua proporção fenotípica?', gabarito: '**Resposta:** A proporção genotípica esperada para *AaBb* é 4/16 (ou 1/4). **Contexto:** A proporção fenotípica é o grupo dos "duplos dominantes" (A\_B\_), que é 9/16, assumindo que A é dominante sobre a e B é dominante sobre b.', tema: 'cat2' },
+                    { id: 8, pergunta: 'Utilizando a fórmula da expansão binomial, escreva a expressão que representa a probabilidade de um casal ter 5 filhos, sendo 3 albinos (p) e 2 com pigmentação normal (q), sabendo que ambos os pais são heterozigotos para albinismo.', gabarito: '**Resposta:** A probabilidade de um filho ser albino (p) é 1/4. A probabilidade de pigmentação normal (q) é 3/4. **Contexto:** A fórmula é *P = (5! / (3! x 2!)) x p³ x q²*. Onde (5! / (3!2!)) = 10. *P = 10 x (1/4)³ x (3/4)²*.', tema: 'cat2' },
+                    { id: 9, pergunta: 'Qual o genótipo de um indivíduo com o fenótipo dominante (A\_)? Como um cruzamento-teste pode determinar se ele é homozigoto ou heterozigoto?', gabarito: '**Resposta:** O genótipo pode ser *AA* (homozigoto dominante) ou *Aa* (heterozigoto). **Contexto:** O cruzamento-teste é feito com um indivíduo homozigoto recessivo (*aa*). Se a prole for 100% *Aa* (fenótipo dominante), o indivíduo testado é *AA*. Se a prole for 50% *Aa* (dominante) e 50% *aa* (recessivo), o indivíduo testado é *Aa*.', tema: 'cat2' },
+                    { id: 10, pergunta: 'Em que contexto genético a probabilidade binomial é mais útil?', gabarito: '**Resposta:** A probabilidade binomial é usada para calcular a probabilidade de obter uma combinação específica de resultados em um número fixo de eventos (n), onde há apenas dois resultados possíveis. **Contexto:** A fórmula *P = (n! / (x!y!)) p^x q^y* é ideal para calcular a ordem e a frequência de eventos independentes, como a sequência de nascimentos em uma família.', tema: 'cat2' },
+                ]
+            },
+            'cat3': {
+                nome: 'Extensões dos Princípios de Mendel',
+                cor: 'red',
+                fechadas: [
+                    { id: 21, pergunta: 'O que caracteriza a Dominância Incompleta?', opcoes: ['O heterozigoto expressa os dois fenótipos parentais simultaneamente.', 'O fenótipo do heterozigoto é intermediário entre os dois homozigotos.', 'Um alelo mascara a expressão de outro alelo em um locus diferente.', 'A característica é determinada por mais de dois alelos.'], correta: 1, tema: 'cat3' },
+                    { id: 22, pergunta: 'A Codominância é exemplificada classicamente por qual sistema sanguíneo humano?', opcoes: ['Sistema Rh', 'Sistema ABO', 'Sistema MN', 'Sistema Duffy'], correta: 2, tema: 'cat3' },
+                    { id: 23, pergunta: 'Qual a proporção fenotípica esperada em um cruzamento entre dois heterozigotos com um Alelo Letal recessivo (exemplo do camundongo amarelo)?', opcoes: ['3:1', '1:2:1', '2:1', '9:3:3:1'], correta: 2, tema: 'cat3' },
+                    { id: 24, pergunta: 'O que significa um gene ter Penetrância Incompleta?', opcoes: ['O alelo sempre produz o fenótipo, mas com intensidade variável.', 'O alelo só é expresso em homozigose.', 'O alelo não é expresso em alguns indivíduos, mesmo que possuam o genótipo.', 'O gene interage com outro gene para produzir o fenótipo.'], correta: 2, tema: 'cat3' },
+                    { id: 25, pergunta: 'A Epistasia é definida como:', opcoes: ['Interação entre alelos no mesmo locus.', 'Ocorrência de alelos múltiplos.', 'A interação entre genes em diferentes loci, onde um gene mascara ou modifica a expressão de outro.', 'O efeito ambiental no fenótipo.'], correta: 2, tema: 'cat3' },
+                    { id: 26, pergunta: 'Em alelos múltiplos, o sistema sanguíneo ABO tem quantos alelos na população?', opcoes: ['Dois (A e B).', 'Três (I-A, I-B e i).', 'Quatro (A, B, AB, O).', 'Infinitos.'], correta: 1, tema: 'cat3' },
+                    { id: 27, pergunta: 'Em Codominância, o fenótipo do heterozigoto é:', opcoes: ['Intermediário.', 'Mascarado.', 'Uma mistura de ambos os alelos.', 'Expressa ambos os alelos simultaneamente.'], correta: 3, tema: 'cat3' },
+                    { id: 28, pergunta: 'A Fenilcetonúria (PKU) é um exemplo clássico de:', opcoes: ['Penetrância incompleta.', 'Expressividade variável.', 'Pleiotropia.', 'Alelos Letais.'], correta: 2, tema: 'cat3' },
+                    { id: 29, pergunta: 'Uma proporção fenotípica 9:3:4 na prole de um cruzamento di-híbrido indica, tipicamente:', opcoes: ['Epistasia dominante.', 'Epistasia recessiva.', 'Dominância incompleta.', 'Codominância.'], correta: 1, tema: 'cat3' },
+                    { id: 30, pergunta: 'Qual termo descreve a situação em que um alelo causa a morte do organismo (geralmente em estágios iniciais) em homozigose?', opcoes: ['Alelos Nulos.', 'Alelos Hipomórficos.', 'Alelos Letais.', 'Alelos Amórficos.'], correta: 2, tema: 'cat3' },
+                ],
+                abertas: [
+                    { id: 11, pergunta: 'Diferencie Codominância de Dominância Incompleta e dê um exemplo para cada.', gabarito: '**Resposta:** Dominância Incompleta: O fenótipo do heterozigoto é INTERMEDIÁRIO (ex: flor vermelha x flor branca = flor rosa). **Contexto:** Codominância: O heterozigoto expressa AMBOS os fenótipos parentais simultaneamente (ex: sangue tipo AB ou MN, onde os alelos são expressos igualmente).', tema: 'cat3' },
+                    { id: 12, pergunta: 'Por que o sistema sanguíneo ABO é um exemplo de Alelos Múltiplos?', gabarito: '**Resposta:** O sistema ABO é determinado por um único gene (o gene I) que possui mais de dois alelos na população (três: I-A, I-B e i). **Contexto:** Alelos múltiplos referem-se à existência de mais de duas formas alélicas para um gene em nível populacional.', tema: 'cat3' },
+                    { id: 13, pergunta: 'Explique o conceito de Alelos Letais e o que eles fazem com a proporção mendeliana de 3:1.', gabarito: '**Resposta:** Alelos Letais provocam a morte do organismo, geralmente em um estágio inicial de desenvolvimento, eliminando certos genótipos. **Contexto:** Se o alelo letal for recessivo (e matar em homozigose), ele remove o homozigoto recessivo da prole viável, alterando a proporção fenotípica 3:1 para 2:1 (no caso de camundongos amarelos).', tema: 'cat3' },
+                    { id: 14, pergunta: 'Diferencie os conceitos de Penetrância e Expressividade, dando um exemplo que ilustre a Penetrância Incompleta.', gabarito: '**Resposta:** Penetrância: É a porcentagem de indivíduos com um genótipo que realmente expressa o fenótipo esperado (TUDO ou NADA). Expressividade: É o grau ou intensidade com que um fenótipo é expresso (VARIÁVEL). **Contexto:** Exemplo de Penetrância Incompleta: Algumas pessoas com o genótipo para polidactilia (dedos extras) não manifestam a característica, mas o genótipo está presente.', tema: 'cat3' },
+                    { id: 15, pergunta: 'Qual a proporção fenotípica esperada em um cruzamento de di-híbridos ("AaBb" x "AaBb") que segue um padrão de Epistasia Recessiva?', gabarito: '**Resposta:** A Epistasia Recessiva (*aa* mascara *B/b*) resulta na proporção fenotípica 9:3:4. **Contexto:** Nove para o fenótipo A\_B\_, três para A\_bb, e quatro para o grupo mascarado (aaB\_ e aabb), que expressam o mesmo fenótipo (recessivo).', tema: 'cat3' },
+                ]
+            }
+        };
 
-export default function SimuladorTematicoGenetica() {
-  const [started, setStarted] = useState(false);
-  const [respostasFechadas, setRespostasFechadas] = useState<Record<number, number>>({});
-  const [respostasAbertas, setRespostasAbertas] = useState<Record<number, string>>({});
-  
-  // Estado de Verificação por Tema
-  const [temasVerificados, setTemasVerificados] = useState<Record<string, boolean>>({});
-  const [abertasVerificadas, setAbertasVerificadas] = useState(false);
-  const [mostrarGabaritoAberto, setMostrarGabaritoAberto] = useState<Record<number, boolean>>({});
-  const topRef = useRef<HTMLDivElement>(null);
+        // --- Variáveis de Estado (Simulando o useState do React) ---
+        let allClosedQuestions = []; // As 15 questões selecionadas
+        let allOpenQuestions = []; // As 15 questões selecionadas
+        let respostasFechadas = {};
+        let respostasAbertas = [];
+        let resultadosFechadas = null;
+        let verificadas = false;
+        let abertasVerificadas = false;
+        let tempoRestante = 5400; // 1 hora e 30 minutos em segundos
+        let timerId = null;
+        let timeIsUp = false;
 
-  // Geração da Prova (Memoized para manter as mesmas questões após a geração inicial)
-  const blocosTematicos: BlocoTematico[] = useMemo(() => {
-    const temasArray = Object.entries(TEMAS_E_POOLS).map(([idTema, data]) => {
-      // Seleciona 5 questões fechadas e 3 abertas aleatoriamente
-      const shuffledFechadas = shuffleArray(data.fechadas).slice(0, 5);
-      const shuffledAbertas = shuffleArray(data.abertas).slice(0, 3);
-      
-      return {
-        nome: data.nome,
-        cor: data.cor,
-        idTema: idTema,
-        questoesFechadas: shuffledFechadas,
-        questoesAbertas: shuffledAbertas,
-      };
-    });
-    return temasArray;
-  }, []); // Dependências vazias garantem que roda apenas uma vez
+        // --- FUNÇÕES DE LÓGICA ---
 
-  const allFechadasIds = useMemo(() => blocosTematicos.flatMap(b => b.questoesFechadas.map(q => q.id)), [blocosTematicos]);
-  const allAbertas = useMemo(() => blocosTematicos.flatMap(b => b.questoesAbertas), [blocosTematicos]);
-  
-  const handleStart = () => {
-    setStarted(true);
-    setTimeout(() => topRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-  };
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [
+                    array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
 
-  const handleFinish = () => {
-    // Marca todos os blocos como verificados se o tempo acabar
-    const allChecked: Record<string, boolean> = {};
-    blocosTematicos.forEach(b => allChecked[b.idTema] = true);
-    setTemasVerificados(allChecked);
-    setAbertasVerificadas(true);
-    alert("Tempo esgotado! As respostas foram liberadas para revisão.");
-  };
+        function formatTime(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
 
-  const verificarBlocoFechado = (idTema: string) => {
-    if (window.confirm(`Deseja corrigir o bloco "${blocosTematicos.find(b => b.idTema === idTema)?.nome}" agora? Você não poderá mudar as respostas neste bloco depois.`)) {
-      setTemasVerificados(prev => ({ ...prev, [idTema]: true }));
-    }
-  };
+        function getOptionClass(q, index) {
+            if (!verificadas) {
+                return respostasFechadas[q.id] === index ? 'bg-blue-200 border-blue-600' : 'hover:bg-gray-100 border-gray-300';
+            }
 
-  const calcularAcertosBloco = (idTema: string) => {
-    const bloco = blocosTematicos.find(b => b.idTema === idTema);
-    if (!bloco) return 0;
-    
-    let acertos = 0;
-    bloco.questoesFechadas.forEach(q => {
-      if (respostasFechadas[q.id] === q.correta) acertos++;
-    });
-    return acertos;
-  };
+            // Após verificação
+            if (index === q.correta) {
+                return 'bg-green-100 border-green-600 font-bold';
+            } else if (respostasFechadas[q.id] === index) {
+                return 'bg-red-100 border-red-600 line-through';
+            } else {
+                return 'bg-white border-gray-300';
+            }
+        }
 
-  const calcularTotalAcertos = () => {
-    let totalAcertos = 0;
-    blocosTematicos.forEach(bloco => {
-      totalAcertos += calcularAcertosBloco(bloco.idTema);
-    });
-    return totalAcertos;
-  };
+        function getResumoPorTema() {
+            if (!verificadas) return {};
 
-  const handleLiberarGabaritosAbertas = () => {
-    if (window.confirm("Deseja liberar os gabaritos das 15 questões abertas?")) {
-        setAbertasVerificadas(true);
-        // Abrir todos os gabaritos automaticamente para facilitar
-        const allShown: Record<number, boolean> = {};
-        allAbertas.forEach(q => allShown[q.id] = true);
-        setMostrarGabaritoAberto(allShown);
-    }
-  }
+            const temas = {};
+            Object.keys(FULL_POOLS).forEach(key => {
+                temas[key] = { acertos: 0, total: 0, nome: FULL_POOLS[key].nome, cor: FULL_POOLS[key].cor };
+            });
 
-  // --- UI DO START SCREEN ---
-  if (!started) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-200 flex items-center justify-center p-4">
-        <div className="max-w-3xl bg-white rounded-2xl shadow-2xl p-8 md:p-12 text-center space-y-8 border border-slate-200">
-          <div className="flex justify-center">
-            <Dna className="w-24 h-24 text-indigo-600 animate-pulse" />
-          </div>
-          <h1 className="text-4xl font-extrabold text-slate-900">Simulador de Genética por Blocos Temáticos</h1>
-          <h2 className="text-xl font-semibold text-indigo-700">Estrutura e Conteúdo da Avaliação</h2>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-left">
-            {blocosTematicos.map((bloco) => (
-              <div key={bloco.idTema} className={`bg-white border-t-4 border-${bloco.cor}-500 p-4 rounded-lg shadow-md hover:shadow-lg transition-all`}>
-                <Tag className={`w-5 h-5 text-${bloco.cor}-600 mb-1`} />
-                <h3 className="font-bold text-sm text-slate-800">{bloco.nome}</h3>
-                <p className="text-xs text-slate-500 mt-1">5 Fechadas + 3 Abertas.</p>
-              </div>
-            ))}
-          </div>
+            allClosedQuestions.forEach(q => {
+                const temaKey = q.tema;
+                temas[temaKey].total++;
+                if (respostasFechadas[q.id] === q.correta) {
+                    temas[temaKey].acertos++;
+                }
+            });
+            return temas;
+        }
 
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
-             <div className="flex items-center justify-center gap-2 mb-4 text-lg font-medium text-slate-700">
-                <Activity className="w-5 h-5 text-indigo-500" />
-                Regras do Simulado
-             </div>
-             <ul className="text-sm text-slate-600 space-y-2 text-left list-disc list-inside">
-                <li>A prova está dividida em 5 blocos temáticos, cada um com 5 questões fechadas e 3 abertas.</li>
-                <li>Total: **25 questões fechadas** e **15 questões abertas contextualizadas** (40 questões no total).</li>
-                <li>Você pode verificar as questões **fechadas** ao final de cada bloco temático.</li>
-                <li>As 15 questões **abertas** (discursivas) ficam agrupadas no final, com verificação única do gabarito.</li>
-             </ul>
-          </div>
-          
-          <div className="pt-4">
-            <button 
-              onClick={handleStart}
-              className="w-full md:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full text-xl transition-all transform hover:scale-105 shadow-lg"
-            >
-              Iniciar Prova (90 minutos)
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+        // --- FUNÇÕES DE RENDERIZAÇÃO (DOM Manipulation) ---
 
-  // --- UI DA PROVA ---
-  return (
-    <div ref={topRef} className="min-h-screen bg-slate-50 pb-24">
-      {/* Header Fixo */}
-      <header className="sticky top-0 z-50 bg-white shadow-md border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-indigo-600 hidden sm:block" />
-            <h1 className="font-bold text-slate-800 text-sm sm:text-lg">Simulador Genética Temática</h1>
-          </div>
-          <Timer duration={90 * 60} onFinish={handleFinish} />
-        </div>
-      </header>
-      
-      {/* Classe para Tailwind JIT compilar cores dinâmicas */}
-      <div className="hidden">
-        <div className="border-blue-200 bg-blue-100 text-blue-800 border-blue-500 bg-blue-50 text-blue-900 ring-blue-500 bg-blue-600 hover:bg-blue-700 text-blue-600"></div>
-        <div className="border-purple-200 bg-purple-100 text-purple-800 border-purple-500 bg-purple-50 text-purple-900 ring-purple-500 bg-purple-600 hover:bg-purple-700 text-purple-600"></div>
-        <div className="border-green-200 bg-green-100 text-green-800 border-green-500 bg-green-50 text-green-900 ring-green-500 bg-green-600 hover:bg-green-700 text-green-600"></div>
-        <div className="border-orange-200 bg-orange-100 text-orange-800 border-orange-500 bg-orange-50 text-orange-900 ring-orange-500 bg-orange-600 hover:bg-orange-700 text-orange-600"></div>
-        <div className="border-red-200 bg-red-100 text-red-800 border-red-500 bg-red-50 text-red-900 ring-red-500 bg-red-600 hover:bg-red-700 text-red-600"></div>
-      </div>
+        function renderHeader() {
+            const container = document.getElementById('header-container');
+            const timerClass = timeIsUp ? 'bg-red-600 text-white time-up' : 'bg-slate-700';
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-16">
-        
-        <h2 className="text-3xl font-extrabold text-slate-800 text-center border-b pb-3 mb-8">Parte A: 25 Questões Fechadas por Tema</h2>
-        
-        {/* BLOCOS FECHADOS POR TEMA */}
-        {blocosTematicos.map((bloco, blocoIdx) => (
-          <section key={bloco.idTema} className="space-y-6">
+            container.innerHTML = `
+                <header class="bg-slate-800 text-white p-6 rounded-xl shadow-2xl mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <span class="w-8 h-8 text-blue-400 text-3xl">🧬</span>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                            Simulado de Genética Médica (UFU)
+                        </h1>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div id="timer-display" class="flex items-center gap-2 p-2 rounded-lg ${timerClass}">
+                            <span class="w-5 h-5 text-yellow-400">⏳</span>
+                            <span class="font-mono text-lg">${formatTime(tempoRestante)}</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-700 p-2 rounded-lg">
+                            <span class="w-5 h-5 text-red-400">📊</span>
+                            <span class="font-semibold text-lg">${allClosedQuestions.length + allOpenQuestions.length} Questões</span>
+                        </div>
+                    </div>
+                </header>
+            `;
+        }
+
+        function renderResultsSummary() {
+            const container = document.getElementById('results-summary');
+            if (!verificadas || !resultadosFechadas) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const resumoPorTema = getResumoPorTema();
+            let temaHtml = '';
             
-            {/* Título do Bloco */}
-            <div className={`flex items-center gap-3 border-b-2 border-${bloco.cor}-500 pb-2`}>
-              <CheckSquare className={`w-8 h-8 text-${bloco.cor}-600`} />
-              <h3 className="text-2xl font-bold text-slate-800">{bloco.nome}</h3>
-            </div>
-            <p className={`text-slate-700 bg-${bloco.cor}-50 p-4 rounded-xl border border-${bloco.cor}-200 flex items-center gap-2`}>
-              <Zap className={`w-5 h-5 text-${bloco.cor}-600`} />
-              Este bloco contém 5 questões de múltipla escolha. Corrija-o antes de avançar para a parte discursiva.
-            </p>
+            Object.values(resumoPorTema).forEach(tema => {
+                const percentage = tema.total > 0 ? ((tema.acertos / tema.total) * 100).toFixed(0) : 0;
+                temaHtml += `
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-md">
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-4 text-${tema.cor}-500">🏷️</span>
+                            <span class="text-sm font-medium text-slate-600">${tema.nome}</span>
+                        </div>
+                        <span class="font-bold text-md text-${tema.cor}-700">${tema.acertos} / ${tema.total} (${percentage}%)</span>
+                    </div>
+                `;
+            });
 
-            {/* Questões */}
-            {bloco.questoesFechadas.map((q, qIdx) => {
-              const qIndexTotal = allFechadasIds.indexOf(q.id) + 1;
-              const isVerified = temasVerificados[bloco.idTema];
-
-              return (
-                <div key={q.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 transition-all hover:shadow-md">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`bg-${bloco.cor}-100 text-${bloco.cor}-800 text-sm font-bold px-3 py-1 rounded-full border border-${bloco.cor}-200`}>
-                      Questão {qIndexTotal}
-                    </span>
-                  </div>
-                  
-                  <h4 className="text-lg font-medium text-slate-800 mb-4">{q.pergunta}</h4>
-
-                  <div className="space-y-2 pl-2">
-                    {q.opcoes.map((opt, optIdx) => {
-                      let styleClass = "border-slate-200 hover:bg-slate-50 hover:border-indigo-300";
-                      let icon = null;
-
-                      if (isVerified) {
-                        if (optIdx === q.correta) {
-                          styleClass = "border-green-500 bg-green-50 text-green-900 font-medium";
-                          icon = <CheckCircle className="w-5 h-5 text-green-600 absolute right-4 top-3" />;
-                        } else if (respostasFechadas[q.id] === optIdx) {
-                          styleClass = "border-red-300 bg-red-50 text-red-800";
-                          icon = <AlertCircle className="w-5 h-5 text-red-500 absolute right-4 top-3" />;
-                        } else {
-                          styleClass = "border-slate-100 text-slate-400 opacity-60";
-                        }
-                      } else if (respostasFechadas[q.id] === optIdx) {
-                        styleClass = `border-${bloco.cor}-500 bg-${bloco.cor}-100 text-slate-900 ring-1 ring-${bloco.cor}-500`;
-                      }
-
-                      return (
-                        <button
-                          key={optIdx}
-                          onClick={() => !isVerified && setRespostasFechadas(prev => ({ ...prev, [q.id]: optIdx }))}
-                          disabled={isVerified}
-                          className={`relative w-full text-left p-3 rounded-lg border-2 transition-all text-sm ${styleClass}`}
-                        >
-                          <span className="font-bold mr-2">{String.fromCharCode(65 + optIdx)}.</span> {opt}
-                          {icon}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Botão de Verificação do Bloco */}
-            <div className={`bg-${bloco.cor}-100 p-6 rounded-xl border border-${bloco.cor}-300 flex flex-col sm:flex-row justify-between items-center gap-4`}>
-              <div>
-                <h3 className="font-bold text-slate-700 text-lg">Fim do Bloco: {bloco.nome}</h3>
-                {temasVerificados[bloco.idTema] ? (
-                  <p className="text-green-700 font-bold text-xl mt-1">
-                    Acertos: {calcularAcertosBloco(bloco.idTema)} de {bloco.questoesFechadas.length}
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-600">Verifique suas respostas para ver a pontuação.</p>
-                )}
-              </div>
-              {!temasVerificados[bloco.idTema] ? (
-                <button
-                  onClick={() => verificarBlocoFechado(bloco.idTema)}
-                  className={`bg-${bloco.cor}-600 hover:bg-${bloco.cor}-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors`}
-                >
-                  <CheckCircle className="w-5 h-5" /> Corrigir Bloco
-                </button>
-              ) : (
-                <div className="px-6 py-3 bg-slate-300 text-slate-600 font-bold rounded-lg cursor-not-allowed">
-                  Correção Realizada
-                </div>
-              )}
-            </div>
-            
-            {blocoIdx < blocosTematicos.length - 1 && <hr className="border-slate-300 border-dashed my-8" />}
-
-          </section>
-        ))}
-        
-        <div className="bg-indigo-100 p-6 rounded-xl text-center shadow-lg border border-indigo-300">
-            <h4 className="text-xl font-bold text-indigo-800">Total de Acertos na Parte Fechada:</h4>
-            <p className="text-4xl font-extrabold text-indigo-700 mt-2">
-                {calcularTotalAcertos()} / {allFechadasIds.length}
-            </p>
-        </div>
-
-        <hr className="border-slate-400 my-12" />
-
-        {/* BLOCO 2: QUESTÕES ABERTAS (AGRUPADAS) */}
-        <section className="space-y-6">
-          <div className="flex items-center gap-3 border-b-2 border-orange-500 pb-2">
-            <FileText className="w-8 h-8 text-orange-700" />
-            <h2 className="text-3xl font-bold text-slate-800">Parte B: 15 Questões Discursivas Contextualizadas</h2>
-          </div>
-          <p className="text-slate-700 bg-orange-50 p-4 rounded-xl border border-orange-200 flex items-center gap-2">
-            <Eye className="w-5 h-5 text-orange-600" />
-            Responda estas 15 questões (3 de cada tema). O gabarito só será liberado ao clicar no botão abaixo.
-          </p>
-
-          {blocosTematicos.flatMap(b => b.questoesAbertas.map((q) => {
-             const parentBloco = blocosTematicos.find(bl => bl.questoesAbertas.includes(q))!;
-             const qIndexTotal = allAbertas.indexOf(q) + 1;
-
-            return (
-                <div key={q.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-300 transition-all hover:shadow-md">
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className={`bg-${parentBloco.cor}-100 text-${parentBloco.cor}-800 text-sm font-bold px-3 py-1 rounded-full border border-${parentBloco.cor}-300`}>
-                            Discursiva {qIndexTotal} - {parentBloco.nome}
-                        </span>
+            container.innerHTML = `
+                <section class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500 mb-8">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="w-6 h-6 text-green-600">✅</span> Resumo de Desempenho (Múltipla Escolha)
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="p-4 bg-green-50 rounded-lg border border-green-200">
+                            <p class="text-xl font-bold text-green-700">${resultadosFechadas.acertos}</p>
+                            <p class="text-sm text-green-600">Acertos</p>
+                        </div>
+                        <div class="p-4 bg-red-50 rounded-lg border border-red-200">
+                            <p class="text-xl font-bold text-red-700">${resultadosFechadas.incorretos}</p>
+                            <p class="text-sm text-red-600">Erros</p>
+                        </div>
+                        <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <p class="text-xl font-bold text-yellow-700">${resultadosFechadas.naoRespondidas}</p>
+                            <p class="text-sm text-yellow-600">Não Respondidas</p>
+                        </div>
                     </div>
 
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">{q.pergunta}</h3>
+                    <h3 class="text-lg font-semibold text-slate-700 mb-3">Acertos por Categoria (Tag):</h3>
+                    <div class="space-y-2">
+                        ${temaHtml}
+                    </div>
+                </section>
+            `;
+        }
 
-                    <textarea
-                        placeholder="Escreva sua resposta aqui..."
-                        className="w-full p-4 rounded-lg border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent min-h-[150px] text-slate-700 mb-4"
-                        value={respostasAbertas[q.id] || ''}
-                        onChange={e => setRespostasAbertas(prev => ({ ...prev, [q.id]: e.target.value }))}
-                        disabled={abertasVerificadas}
-                    />
+        function renderClosedQuestions() {
+            const container = document.getElementById('closed-questions-section');
+            let closedHtml = `
+                <h2 class="text-3xl font-bold text-slate-700 border-b-2 border-slate-300 pb-2 mb-8 flex items-center gap-2">
+                    <span class="w-7 h-7 text-blue-600">☑️</span> Parte A: 15 Questões de Múltipla Escolha (3 Blocos de 5)
+                </h2>
+            `;
+            let globalQuestionIndex = 0;
 
-                    {abertasVerificadas && (
-                        <div className="animate-fade-in mt-4 border-t pt-4">
+            Object.keys(FULL_POOLS).forEach(tagKey => {
+                const temaData = FULL_POOLS[tagKey];
+                const questionsForTag = allClosedQuestions.filter(q => q.tema === tagKey);
+                
+                closedHtml += `
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-${temaData.cor}-500">
+                        <h3 class="text-2xl font-bold text-${temaData.cor}-700 mb-6 flex items-center gap-3">
+                            <span class="w-6 h-6 text-${temaData.cor}-600">🏷️</span> Bloco Temático: ${temaData.nome}
+                        </h3>
+                        <div class="space-y-6">
+                `;
+
+                questionsForTag.forEach((q, qIndex) => {
+                    globalQuestionIndex++;
+                    let optionsHtml = '';
+                    q.opcoes.forEach((opcao, index) => {
+                        const isDisabled = verificadas ? 'disabled' : '';
+                        const optionClass = getOptionClass(q, index);
+                        const correctBadge = (verificadas && index === q.correta) ? '<span class="ml-3 text-green-700 font-bold flex-shrink-0"> (Correta)</span>' : '';
+                        const cursorClass = verificadas || timeIsUp ? 'cursor-not-allowed' : 'cursor-pointer';
+
+                        optionsHtml += `
                             <button
-                                onClick={() => setMostrarGabaritoAberto(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
-                                className="text-sm font-bold text-green-600 hover:text-green-800 flex items-center gap-1 mb-2 transition-colors"
+                                data-question-id="${q.id}"
+                                data-option-index="${index}"
+                                onclick="handleRespostaFechada(${q.id}, ${index})"
+                                ${isDisabled}
+                                class="w-full text-left p-3 rounded-lg border-2 transition-all duration-200 ${optionClass} ${cursorClass}"
                             >
-                                {mostrarGabaritoAberto[q.id] ? <ChevronUp className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                                {mostrarGabaritoAberto[q.id] ? 'Ocultar Gabarito' : 'Ver Gabarito Sugerido'}
+                                <span class="font-mono font-bold mr-2 text-slate-600">${String.fromCharCode(65 + index)}.</span>
+                                <span class="text-slate-700">${opcao}</span>
+                                ${correctBadge}
                             </button>
-                            
-                            {mostrarGabaritoAberto[q.id] && (
-                                <div className="p-4 bg-green-50 border border-green-300 rounded-lg text-slate-800 text-sm">
-                                    <strong className="text-green-700 block mb-1">Resposta Esperada / Contexto:</strong>
-                                    {q.gabarito}
-                                </div>
-                            )}
+                        `;
+                    });
+
+                    closedHtml += `
+                        <div id="q-closed-${q.id}" class="p-4 border-b border-slate-100 last:border-b-0">
+                            <p class="text-lg font-semibold text-slate-800 mb-3">
+                                <span class="text-${temaData.cor}-600 mr-2">${globalQuestionIndex}.</span> ${q.pergunta}
+                            </p>
+                            <div class="space-y-2">
+                                ${optionsHtml}
+                            </div>
                         </div>
-                    )}
+                    `;
+                });
+
+                closedHtml += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            const buttonHtml = !verificadas ? `
+                <button
+                    onclick="handleVerificar()"
+                    ${timeIsUp ? 'disabled' : ''}
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors ${timeIsUp ? 'opacity-50 cursor-not-allowed' : ''}"
+                >
+                    <span class="w-5 h-5">⚡</span> Finalizar e Verificar Respostas
+                </button>
+            ` : `
+                <div class="px-6 py-3 bg-slate-400 text-white font-bold rounded-lg cursor-not-allowed">
+                    Verificado
                 </div>
-            )
-          }))}
+            `;
 
-          {/* Botão de Verificação das Abertas */}
-          <div className="bg-slate-200 p-6 rounded-xl border border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-              <h3 className="font-bold text-slate-800 text-lg">Fim da Parte B: 15 Questões Discursivas</h3>
-              <p className="text-sm text-slate-600">Use o gabarito para autoavaliar a profundidade e o contexto de suas respostas.</p>
-            </div>
-            {!abertasVerificadas ? (
-              <button
-                onClick={handleLiberarGabaritosAbertas}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors"
-              >
-                <Eye className="w-5 h-5" /> Liberar Gabaritos das 15 Questões
-              </button>
-            ) : (
-              <div className="px-6 py-3 bg-slate-400 text-white font-bold rounded-lg cursor-not-allowed">
-                Gabaritos Liberados
-              </div>
-            )}
-          </div>
-        </section>
+            closedHtml += `
+                <!-- Botão de Verificação -->
+                <div class="bg-slate-200 p-6 rounded-xl border border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Fim da Parte A: 15 Questões Fechadas</h3>
+                        <p class="text-sm text-slate-600">Verifique suas respostas para a correção automática.</p>
+                    </div>
+                    ${buttonHtml}
+                </div>
+            `;
+            container.innerHTML = closedHtml;
+        }
 
-      </main>
-    </div>
-  );
-}
+        function renderOpenQuestions() {
+            const container = document.getElementById('open-questions-section');
+            let openHtml = `
+                <h2 class="text-3xl font-bold text-slate-700 border-b-2 border-slate-300 pb-2 mb-8 flex items-center gap-2">
+                    <span class="w-7 h-7 text-orange-600">📝</span> Parte B: 15 Questões Discursivas (Com Contexto)
+                </h2>
+            `;
+            let globalQuestionIndex = allClosedQuestions.length;
+
+            allOpenQuestions.forEach((q, qIndex) => {
+                globalQuestionIndex++;
+                const temaData = FULL_POOLS[q.tema];
+                const colorClass = `border-l-4 border-${temaData.cor}-500`;
+
+                const gabaritoHtml = abertasVerificadas ? `
+                    <div class="mt-4 p-4 bg-green-50 rounded-lg text-slate-800 text-sm border border-green-200">
+                        <strong class="text-green-700 block mb-1">Gabarito / Contexto Esperado:</strong>
+                        ${q.gabarito.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+                    </div>
+                ` : '';
+
+                openHtml += `
+                    <div class="bg-white p-6 rounded-xl shadow-md border ${colorClass}">
+                        <p class="text-xl font-semibold text-slate-800 mb-4">
+                            <span class="text-${temaData.cor}-600 mr-2">${globalQuestionIndex}.</span> ${q.pergunta}
+                        </p>
+                        <p class="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1"><span class="w-4 h-4">🏷️</span> Tema: ${temaData.nome}</p>
+                        <textarea
+                            rows="5"
+                            data-question-id="${q.id}"
+                            oninput="handleRespostaAberta(${q.id}, this.value)"
+                            ${abertasVerificadas ? 'disabled' : ''}
+                            class="w-full p-3 border border-slate-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 text-slate-700 resize-none ${abertasVerificadas ? 'bg-gray-100 disabled-textarea' : ''}"
+                            placeholder="Escreva sua resposta aqui..."
+                        >${q.resposta}</textarea>
+                        ${gabaritoHtml}
+                    </div>
+                `;
+            });
+
+            const buttonHtml = !abertasVerificadas ? `
+                <button
+                    onclick="handleLiberarGabaritosAbertas()"
+                    class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors"
+                >
+                    <span class="w-5 h-5">👁️</span> Liberar Gabaritos das 15 Questões
+                </button>
+            ` : `
+                <div class="px-6 py-3 bg-slate-400 text-white font-bold rounded-lg cursor-not-allowed">
+                    Gabaritos Liberados
+                </div>
+            `;
+
+            openHtml += `
+                <!-- Botão de Verificação das Abertas -->
+                <div class="bg-slate-200 p-6 rounded-xl border border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Fim da Parte B: 15 Questões Discursivas</h3>
+                        <p class="text-sm text-slate-600">Use o gabarito para autoavaliar a profundidade e o contexto de suas respostas.</p>
+                    </div>
+                    ${buttonHtml}
+                </div>
+            `;
+            container.innerHTML = openHtml;
+        }
+
+        function renderFooter() {
+            const container = document.getElementById('footer-container');
+            container.innerHTML = `
+                <footer class="mt-10 pt-6 border-t border-slate-300 text-center text-sm text-slate-500">
+                    <p>Simulado de Genética Médica - Aplicação em JavaScript Vanilla (Puro) e Tailwind CSS.</p>
+                </footer>
+            `;
+        }
+
+        function renderApp() {
+            renderHeader();
+            renderResultsSummary();
+            renderClosedQuestions();
+            renderOpenQuestions();
+            renderFooter();
+        }
+
+        // --- FUNÇÕES DE LÓGICA DE EVENTOS (Chamadas nos botões) ---
+
+        function handleRespostaFechada(id, index) {
+            if (verificadas || timeIsUp) return;
+            respostasFechadas[id] = index;
+            renderClosedQuestions();
+        }
+        window.handleRespostaFechada = handleRespostaFechada;
+
+        function handleRespostaAberta(id, value) {
+            // Encontra a questão na lista e atualiza a resposta
+            const q = allOpenQuestions.find(q => q.id === id && q.tema === event.target.dataset.tema);
+            if (q) {
+                q.resposta = value;
+            }
+            // Não precisa de rerender completo, o navegador já atualizou o textarea
+        }
+        window.handleRespostaAberta = handleRespostaAberta;
+
+        function handleVerificar() {
+            if (verificadas) return;
+
+            clearInterval(timerId);
+            verificadas = true;
+
+            let acertos = 0;
+            let incorretos = 0;
+            const totalQuestoes = allClosedQuestions.length;
+
+            allClosedQuestions.forEach(q => {
+                const respostaUsuario = respostasFechadas[q.id];
+                if (respostaUsuario === q.correta) {
+                    acertos++;
+                } else if (respostaUsuario !== undefined) {
+                    incorretos++;
+                }
+            });
+
+            resultadosFechadas = { acertos, incorretos, naoRespondidas: totalQuestoes - acertos - incorretos };
+            renderApp(); // Rerenderiza tudo para mostrar os resultados e cores
+        }
+        window.handleVerificar = handleVerificar;
+
+        function handleLiberarGabaritosAbertas() {
+            if (abertasVerificadas) return;
+            abertasVerificadas = true;
+            renderOpenQuestions();
+        }
+        window.handleLiberarGabaritosAbertas = handleLiberarGabaritosAbertas;
+
+        // --- INICIALIZAÇÃO E TIMER ---
+
+        function initializeQuestions() {
+            // Seleciona 5 fechadas e 5 abertas de cada pool
+            allClosedQuestions = [];
+            allOpenQuestions = [];
+
+            Object.keys(FULL_POOLS).forEach(key => {
+                const pool = FULL_POOLS[key];
+                
+                // Seleciona 5 fechadas aleatoriamente
+                const closedPool = shuffle([...pool.fechadas]);
+                const selectedClosed = closedPool.slice(0, 5);
+                allClosedQuestions.push(...selectedClosed);
+                
+                // Seleciona 5 abertas aleatoriamente (nesse caso, 5 de 5, apenas embaralha)
+                const openPool = shuffle([...pool.abertas]);
+                const selectedOpen = openPool.slice(0, 5);
+                allOpenQuestions.push(...selectedOpen.map(q => ({...q, resposta: ''}))); // Adiciona campo resposta
+            });
+            
+            // Embaralha as listas finais para misturar os temas (opcional, mas bom para a experiência)
+            allClosedQuestions = shuffle(allClosedQuestions);
+            allOpenQuestions = shuffle(allOpenQuestions);
+
+            // Inicializa as respostas fechadas como objeto vazio
+            respostasFechadas = {};
+        }
+
+        function startTimer() {
+            const timerDisplayContainer = document.getElementById('timer-display');
+            
+            function updateTimer() {
+                if (tempoRestante <= 0) {
+                    clearInterval(timerId);
+                    tempoRestante = 0;
+                    timeIsUp = true;
+                    // Força a verificação e desabilita botões se o tempo acabar
+                    if (!verificadas) {
+                       handleVerificar(); 
+                    } else {
+                       renderHeader();
+                       renderClosedQuestions();
+                    }
+                    return;
+                }
+
+                if (timerDisplayContainer) {
+                    const timeSpan = timerDisplayContainer.querySelector('span:last-child');
+                    if (timeSpan) {
+                        timeSpan.textContent = formatTime(tempoRestante);
+                        if (tempoRestante <= 300 && !timeIsUp) { // Alerta visual nos últimos 5 minutos
+                            timerDisplayContainer.classList.add('bg-red-500', 'time-up');
+                            timerDisplayContainer.classList.remove('bg-slate-700');
+                        }
+                    }
+                }
+                tempoRestante--;
+            }
+
+            // Garante que não há timers múltiplos
+            if (timerId) clearInterval(timerId);
+
+            if (timerDisplayContainer) {
+                timerId = setInterval(updateTimer, 1000);
+            }
+        }
+
+        // --- PONTO DE ENTRADA ---
+        window.onload = function() {
+            initializeQuestions();
+            renderApp();
+            startTimer();
+        };
+    </script>
+</body>
+</html>
